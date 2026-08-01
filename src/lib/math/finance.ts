@@ -1,4 +1,4 @@
-﻿import { endOfMonth, endOfWeek, format, isWithinInterval, startOfMonth, startOfWeek, subMonths, subWeeks } from "date-fns";
+import { endOfMonth, endOfWeek, format, isWithinInterval, startOfMonth, startOfWeek, subMonths, subWeeks } from "date-fns";
 
 import type { Transaction } from "@/types/finance";
 
@@ -53,8 +53,8 @@ export interface CashflowAnalysis {
 export interface FinancialInsight {
   id: string;
   type: "success" | "warning" | "info";
-  title: string;
-  message: string;
+  translationKey: string;
+  params?: Record<string, string | number>;
 }
 
 export const calculateBudget503020 = (totalIncome: number): BudgetStats => {
@@ -119,7 +119,10 @@ export const calculateEmergencyFundStatus = (
   currentSavings: number
 ): EmergencyFundStatus => {
   if (monthlyExpenses <= 0) {
-    return { monthsCovered: 0, status: "excellent" };
+    return { 
+      monthsCovered: currentSavings > 0 ? 999 : 0, 
+      status: currentSavings > 0 ? "excellent" : "critical" 
+    };
   }
 
   const monthsCovered = currentSavings / monthlyExpenses;
@@ -303,8 +306,8 @@ export const generateFinancialInsights = (
       insights.push({
         id: "weekly-spend-warning",
         type: "warning",
-        title: "Weekly spending increased",
-        message: `Spending is up ${Math.round(weeklyComparison.changePercent)}% compared with last week.`,
+        translationKey: "weeklySpendUp",
+        params: { percent: Math.round(weeklyComparison.changePercent) },
       });
     }
   }
@@ -314,8 +317,8 @@ export const generateFinancialInsights = (
     insights.push({
       id: "positive-cashflow",
       type: "success",
-      title: "Positive monthly cashflow",
-      message: `You are currently net positive by ${Math.round(currentMonth.net).toLocaleString()}.`,
+      translationKey: "positiveCashflow",
+      params: { amount: Math.round(currentMonth.net) },
     });
   }
 
@@ -324,8 +327,8 @@ export const generateFinancialInsights = (
     insights.push({
       id: "category-concentration",
       type: "warning",
-      title: "Spending concentration detected",
-      message: `${topCategory.name} represents ${Math.round(topCategory.percentage)}% of expense outflow.`,
+      translationKey: "categoryConcentration",
+      params: { category: topCategory.name, percent: Math.round(topCategory.percentage) },
     });
   }
 
@@ -333,15 +336,13 @@ export const generateFinancialInsights = (
     insights.push({
       id: "health-strong",
       type: "success",
-      title: "Financial health is strong",
-      message: "Your budget behavior and savings profile are in a healthy range.",
+      translationKey: "healthStrong",
     });
   } else if (healthScore < 50) {
     insights.push({
       id: "health-improve",
       type: "info",
-      title: "Health score can improve",
-      message: "Focus on reducing discretionary spending and increasing monthly savings.",
+      translationKey: "healthImprove",
     });
   }
 

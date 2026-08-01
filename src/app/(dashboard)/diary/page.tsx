@@ -22,6 +22,7 @@ function stripHtml(value: string) {
 
 export default function DiaryPage() {
   const notes = useDiaryStore((state) => state.notes);
+  const isLoading = useDiaryStore((state) => state.isLoading);
   const addNote = useDiaryStore((state) => state.addNote);
   const updateNote = useDiaryStore((state) => state.updateNote);
   const removeNote = useDiaryStore((state) => state.removeNote);
@@ -58,7 +59,8 @@ export default function DiaryPage() {
 
   const activeNote = notes.find((note) => note.id === resolvedSelectedId) ?? null;
 
-  const createNote = () => {
+  // PERBAIKAN: Menambahkan 'async' agar penggunaan 'await' di dalamnya valid
+  const createNote = async () => {
     const payload: DiaryNoteInput = {
       title: t("diary.untitledNote"),
       content: "",
@@ -67,13 +69,16 @@ export default function DiaryPage() {
       relatedGoalIds: [],
       relatedTransactionIds: [],
     };
-
-    const created = addNote(payload);
-    setSelectedId(created.id);
-    toast.success("New note created.");
+    try {
+      const created = await addNote(payload);
+      setSelectedId(created.id);
+      toast.success("New note created.");
+    } catch (error) {
+      toast.error("Failed to create note.");
+    }
   };
 
-  const addTag = () => {
+  const addTag = async () => {
     if (!activeNote) {
       return;
     }
@@ -88,8 +93,12 @@ export default function DiaryPage() {
       return;
     }
 
-    updateNote(activeNote.id, { tags: [...activeNote.tags, nextTag] });
-    setTagInput("");
+    try {
+      await updateNote(activeNote.id, { tags: [...activeNote.tags, nextTag] });
+      setTagInput("");
+    } catch (error) {
+      toast.error("Failed to add tag.");
+    }
   };
 
   return (
@@ -99,7 +108,7 @@ export default function DiaryPage() {
           <CardContent className="flex h-full flex-col gap-3 p-4">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-semibold">{t("diary.title")}</h1>
-              <Button size="icon" variant="ghost" onClick={createNote}>
+              <Button size="icon" variant="ghost" onClick={createNote} disabled={isLoading}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -300,4 +309,3 @@ export default function DiaryPage() {
     </div>
   );
 }
-

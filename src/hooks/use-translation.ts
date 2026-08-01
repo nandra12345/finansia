@@ -4,39 +4,35 @@ import { useLanguageStore } from "@/store/use-language-store";
 import { locales } from "@/lib/i18n";
 import { useCallback } from "react";
 
-type Paths<T> = T extends object
-  ? {
-      [K in keyof T]: `${Exclude<K, symbol>}${"" | `.${Paths<T[K]>}`}`;
-    }[keyof T]
-  : never;
-
-export type TranslationPath = Paths<(typeof locales)["en"]>;
-
+/**
+ * Lightweight translation hook.
+ * - Accepts dot-notated keys like 'transactions.title'
+ * - Safely traverses the in-memory `locales` dictionary and returns the string or the key as fallback
+ */
 export function useTranslation() {
   const language = useLanguageStore((state) => state.language);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
 
-  const t = useCallback(
-    (path: TranslationPath): string => {
-      const keys = path.split(".");
-      let current: unknown = locales[language] || locales["en"];
+  const t = useCallback((path: string, params?: Record<string, string | number>): string => {
+    if (!path) return "";
+    const keys = path.split(".");
+    let current: any = locales[language] || locales["en"];
 
-      for (const key of keys) {
-        if (current && typeof current === "object" && key in current) {
-          current = (current as Record<string, unknown>)[key];
-        } else {
-          return path;
-        }
+    const result = keys.reduce((obj: any, key: string) => {
+      if (obj && typeof obj === "object" && key in obj) {
+        return obj[key];
       }
+      return undefined;
+    }, current as any);
 
-      return typeof current === "string" ? current : path;
-    },
-    [language]
-  );
+    const message = typeof result === "string" ? result : path;
 
-  return {
-    t,
-    language,
-    setLanguage,
-  };
+    if (!params) {
+      return message;
+    }
+
+    return String(message).replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ""));
+  }, [language]);
+
+  return { t, language, setLanguage } as const;
 }

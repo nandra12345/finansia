@@ -25,6 +25,9 @@ import { SUPPORTED_CURRENCIES, CURRENCY_METADATA } from "@/lib/currency/constant
 import { LANGUAGE_METADATA, LocaleCode } from "@/lib/i18n";
 import { useMounted } from "@/hooks/use-mounted";
 
+// PERBAIKAN: Membuat tipe CurrencyCode secara dinamis dari array konstanta yang ada
+type CurrencyCode = typeof SUPPORTED_CURRENCIES[number];
+
 const STORAGE_KEYS = [
   "finance-storage",
   "planning-storage",
@@ -297,4 +300,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

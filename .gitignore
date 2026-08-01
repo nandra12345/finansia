@@ -1,28 +1,32 @@
-﻿# Sensitive data (SANGAT RISKAN, WAJIB MASUK SINI)
-node_modules/
-.next/
-.env.local
-.env
-.env.local
-.env.development.local
-.env.production.local
-.env.*.local
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
-node_modules/
-/pnpm-lock.yaml
-/package-lock.json
-/yarn.lock
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
 
-# Next.js build output
-.next/
-out/
-build/
+# testing
+/coverage
 
-# IDE / Operating System files
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
-.vscode/
-.idea/
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel

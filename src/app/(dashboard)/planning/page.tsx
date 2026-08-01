@@ -74,6 +74,7 @@ function simulateGrowth(goal: Goal) {
 
 function GoalDialog() {
   const addGoal = usePlanningStore((state) => state.addGoal);
+  const isLoading = usePlanningStore((state) => state.isLoading);
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
 
@@ -100,7 +101,7 @@ function GoalDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button disabled={isLoading} />}>
         <Plus className="mr-2 h-4 w-4" /> {t("planning.createGoal")}
       </DialogTrigger>
       <DialogContent>
@@ -113,7 +114,7 @@ function GoalDialog() {
 
         <form
           className="space-y-4"
-          onSubmit={handleSubmit((values) => {
+          onSubmit={handleSubmit(async (values) => {
             const payload: GoalInput = {
               title: values.title,
               category: values.category,
@@ -125,10 +126,14 @@ function GoalDialog() {
               expectedAnnualReturn: values.expectedAnnualReturn,
             };
 
-            addGoal(payload);
-            toast.success("Goal created.");
-            setOpen(false);
-            form.reset();
+            try {
+              await addGoal(payload);
+              toast.success("Goal created.");
+              setOpen(false);
+              form.reset();
+            } catch (_) {
+              toast.error("Failed to create goal.");
+            }
           })}
         >
           <div className="space-y-2">
@@ -225,6 +230,7 @@ function GoalDialog() {
 function GoalCard({ goal }: { goal: Goal }) {
   const removeGoal = usePlanningStore((state) => state.removeGoal);
   const addContribution = usePlanningStore((state) => state.addContribution);
+  const isLoading = usePlanningStore((state) => state.isLoading);
   const { format, convert } = useCurrency();
   const { t } = useTranslation();
 
@@ -256,9 +262,14 @@ function GoalCard({ goal }: { goal: Goal }) {
             variant="ghost"
             size="icon"
             className="text-muted-foreground hover:text-destructive"
-            onClick={() => {
-              removeGoal(goal.id);
-              toast.success("Goal removed.");
+            disabled={isLoading}
+            onClick={async () => {
+              try {
+                await removeGoal(goal.id);
+                toast.success("Goal removed.");
+              } catch (error) {
+                toast.error("Failed to remove goal.");
+              }
             }}
           >
             <Trash2 className="h-4 w-4" />
@@ -331,20 +342,21 @@ function GoalCard({ goal }: { goal: Goal }) {
           />
           <Button
             variant="outline"
-            onClick={() => {
+            disabled={isLoading}
+            onClick={async () => {
               const value = Number(contributionInput);
               if (!Number.isFinite(value) || value <= 0) {
                 toast.error("Enter a valid contribution amount.");
                 return;
               }
 
-              // Assume contribution input is in global currency, so convert back to base (IDR) if needed
-              // But wait, the goal amounts in store are base?
-              // Prompt says: "When user changes currency... update... transactions, planning goals..."
-              // I'll assume store values are in base currency.
-              addContribution(goal.id, value);
-              setContributionInput("");
-              toast.success("Contribution added.");
+              try {
+                await addContribution(goal.id, value);
+                setContributionInput("");
+                toast.success("Contribution added.");
+              } catch (error) {
+                toast.error("Failed to add contribution.");
+              }
             }}
           >
             {t("common.confirm")}

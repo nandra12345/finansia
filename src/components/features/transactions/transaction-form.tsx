@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -22,6 +22,29 @@ import {
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionInput, TransactionType } from "@/types/finance";
 import { TRANSACTION_CATEGORIES } from "@/types/finance";
+
+/**
+ * Format a numeric value into localized string with thousands separators.
+ * - If the value is 0 or falsy, return an empty string so the input appears empty.
+ */
+function formatCurrency(value: number | string): string {
+  const n = typeof value === "number" ? value : Number(String(value).replace(/\D/g, ""));
+  if (!n || Number.isNaN(n)) return "";
+  return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(n);
+}
+
+/**
+ * Parse an input string into a numeric amount by stripping all non-digits.
+ * Returns 0 if parsing yields no digits.
+ */
+function parseCurrency(value: string): number {
+  if (!value) return 0;
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return 0;
+  // Use Number on the digit string; allows large numbers up to JS safe integer range.
+  const n = Number(digits);
+  return Number.isNaN(n) ? 0 : n;
+}
 
 const transactionFormSchema = z.object({
   description: z.string().min(2, "Description must be at least 2 characters.").max(80),
@@ -52,6 +75,13 @@ export function TransactionForm({
     [initialValues]
   );
 
+  const initialAmountText = useMemo(
+    () => (initialValues?.amount ? formatCurrency(initialValues.amount) : ""),
+    [initialValues?.amount]
+  );
+
+  const [amountText, setAmountText] = useState(initialAmountText);
+
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
@@ -75,6 +105,27 @@ export function TransactionForm({
   const selectedType = useWatch({ control: form.control, name: "type" });
   const selectedCategory = useWatch({ control: form.control, name: "category" });
 
+  const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // Immediately strip any non-digit characters (keeps only 0-9)
+    const raw = event.target.value;
+    const clean = raw.replace(/\D/g, "");
+
+    // If empty, keep the input visually empty and set amount to 0
+    if (clean === "") {
+      setAmountText("");
+      setValue("amount", 0, { shouldValidate: true });
+      return;
+    }
+
+    // Parse as integer and format with localized thousands separators
+    const numeric = Number(clean);
+    const formatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(numeric);
+
+    // Update controlled state and the RHF value (numeric)
+    setAmountText(formatted);
+    setValue("amount", numeric, { shouldValidate: true });
+  };
+
   return (
     <form
       className="space-y-4"
@@ -84,7 +135,8 @@ export function TransactionForm({
           amount: values.amount,
           category: values.category,
           type: values.type,
-          date: values.date.toISOString(),
+          // Send YYYY-MM-DD format — the API regex expects this format, not a full ISO string
+          date: values.date.toLocaleDateString('en-CA'), // en-CA gives YYYY-MM-DD format
           notes: values.notes?.trim() || undefined,
         });
       })}
@@ -98,13 +150,23 @@ export function TransactionForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="amount">Amount</Label>
-          <Input
-            id="amount"
-            type="number"
-            min="0"
-            step="0.01"
-            {...register("amount", { valueAsNumber: true })}
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-0 top-0 flex h-full items-center rounded-l-md border border-r-0 border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+              Rp
+            </span>
+            <Input
+              id="amount"
+              type="text"
+              className="pl-12"
+              placeholder="0"
+              value={amountText}
+              onChange={handleAmountChange}
+              aria-describedby="amount-help"
+            />
+          </div>
+          <p id="amount-help" className="text-xs text-muted-foreground">
+            Enter the amount without currency symbols; formatting is added automatically.
+          </p>
           {errors.amount ? <p className="text-xs text-destructive">{errors.amount.message}</p> : null}
         </div>
         <div className="space-y-2">

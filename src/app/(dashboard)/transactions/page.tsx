@@ -1,7 +1,9 @@
-﻿"use client";
+"use client";
 
 import { Filter, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useCurrency } from "@/hooks/use-currency";
+import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 
 import { TransactionCards } from "@/components/features/transactions/transaction-cards";
@@ -25,27 +27,22 @@ type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 const PAGE_SIZE = 8;
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+
 
 export default function TransactionsPage() {
+  const { t, language } = useTranslation();
+  const tAny = t as any;
   const transactions = useFinanceStore((state) => state.transactions);
+  const isLoading = useFinanceStore((state) => state.isLoading);
   const addTransaction = useFinanceStore((state) => state.addTransaction);
   const updateTransaction = useFinanceStore((state) => state.updateTransaction);
   const removeTransaction = useFinanceStore((state) => state.removeTransaction);
-  const replaceTransactions = useFinanceStore((state) => state.replaceTransactions);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | TransactionType>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date-desc");
   const [page, setPage] = useState(1);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
@@ -97,62 +94,52 @@ export default function TransactionsPage() {
     );
   }, [filteredTransactions]);
 
-  const handleDelete = (id: string) => {
-    removeTransaction(id);
-    toast.success("Transaction deleted.");
-  };
+  const { format, convert } = useCurrency();
 
-  const handleAdd = (input: TransactionInput) => {
-    addTransaction(input);
-    toast.success("Transaction added.");
-  };
-
-  const handleUpdate = (id: string, updates: Partial<TransactionInput>) => {
-    updateTransaction(id, updates);
-    toast.success("Transaction updated.");
-  };
-
-  const handleSyncPush = async () => {
+  const handleDelete = async (id: string) => {
     try {
-      setIsSyncing(true);
-      const response = await fetch("/api/transactions/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactions }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to sync transactions.");
-      }
-
-      toast.success("Transactions synced to Google Sheets.");
+      await removeTransaction(id);
+      toast.success(tAny("transactions.delete_success") || "Transaction deleted.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sync failed.");
-    } finally {
-      setIsSyncing(false);
+      toast.error(tAny("transactions.delete_failed") || "Failed to delete transaction.");
     }
   };
 
-  const handleSyncPull = async () => {
+  const handleAdd = async (input: TransactionInput) => {
     try {
-      setIsSyncing(true);
-      const response = await fetch("/api/transactions/sync", {
-        method: "GET",
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Failed to load transactions.");
-      }
-
-      const payload = (await response.json()) as { transactions: typeof transactions };
-      replaceTransactions(payload.transactions);
-      toast.success("Transactions imported from Google Sheets.");
+      await addTransaction(input);
+      toast.success(tAny("transactions.add_success") || "Transaction added.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Import failed.");
-    } finally {
-      setIsSyncing(false);
+      toast.error(tAny("transactions.add_failed") || "Failed to add transaction.");
+    }
+  };
+
+  const handleUpdate = async (id: string, updates: Partial<TransactionInput>) => {
+    try {
+      await updateTransaction(id, updates);
+      toast.success(tAny("transactions.update_success") || "Transaction updated.");
+    } catch (error) {
+      toast.error(tAny("transactions.update_failed") || "Failed to update transaction.");
+    }
+  };
+
+  // simple translator with optional interpolation support for {current} and {total}
+  const tr = (key: string, params?: Record<string, string | number>) => {
+    try {
+      const raw = tAny(key as any);
+      if (!params) return raw;
+      return String(raw).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ""));
+    } catch (e) {
+      if (!params) return key;
+      return key.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ""));
+    }
+  };
+
+  const formatDateLocale = (date: Date) => {
+    try {
+      return date.toLocaleDateString(language, { year: "numeric", month: "long", day: "numeric" });
+    } catch (e) {
+      return date.toLocaleDateString();
     }
   };
 
@@ -160,27 +147,19 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground">
-            Add, edit, and organize your full income and expense history.
-          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("common.transactions") || tAny("transactions.title")}</h1>
+          <p className="text-muted-foreground">{tAny("transactions.subtitle") || "Add, edit, and organize your full income and expense history."}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleSyncPull} disabled={isSyncing}>
-            Pull Sheets
-          </Button>
-          <Button variant="outline" onClick={handleSyncPush} disabled={isSyncing}>
-            Push Sheets
-          </Button>
           <TransactionDialog
             trigger={
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Add transaction
+              <Button disabled={isLoading}>
+                <Plus className="mr-2 h-4 w-4" /> {tAny("transactions.add") || t("dashboard.addTransaction")}
               </Button>
             }
-            title="Add transaction"
-            description="Create a new income or expense entry."
-            submitLabel="Save transaction"
+            title={tAny("transactions.add") || t("dashboard.addTransaction")}
+            description={tAny("transactions.add_description") || "Create a new income or expense entry."}
+            submitLabel={tAny("transactions.save") || t("common.save")}
             onSubmit={handleAdd}
           />
         </div>
@@ -189,25 +168,25 @@ export default function TransactionsPage() {
       <section className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Income</p>
-            <p className="text-2xl font-semibold text-emerald-600">{formatCurrency(summary.income)}</p>
+            <p className="text-sm text-muted-foreground">{tAny("transactions.income") || "Income"}</p>
+            <p className="text-2xl font-semibold text-emerald-600">{format(convert(summary.income))}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Expense</p>
-            <p className="text-2xl font-semibold text-rose-600">{formatCurrency(summary.expense)}</p>
+            <p className="text-sm text-muted-foreground">{tAny("transactions.expense") || "Expense"}</p>
+            <p className="text-2xl font-semibold text-rose-600">{format(convert(summary.expense))}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Net</p>
+            <p className="text-sm text-muted-foreground">{tAny("transactions.net") || "Net"}</p>
             <p
               className={`text-2xl font-semibold ${
                 summary.income - summary.expense >= 0 ? "text-emerald-600" : "text-rose-600"
               }`}
             >
-              {formatCurrency(summary.income - summary.expense)}
+              {format(convert(summary.income - summary.expense))}
             </p>
           </CardContent>
         </Card>
@@ -218,7 +197,7 @@ export default function TransactionsPage() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search description, category, or notes"
+            placeholder={tAny("transactions.search_placeholder") || "Search description, category, or notes"}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
@@ -237,14 +216,14 @@ export default function TransactionsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full">
             <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Type" />
+            <SelectValue placeholder={tAny("transactions.type_placeholder") || "Type"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="income">Income</SelectItem>
-            <SelectItem value="expense">Expense</SelectItem>
+            <SelectItem value="all">{tAny("transactions.all_types") || "All types"}</SelectItem>
+            <SelectItem value="income">{tAny("transactions.income") || "Income"}</SelectItem>
+            <SelectItem value="expense">{tAny("transactions.expense") || "Expense"}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -260,10 +239,10 @@ export default function TransactionsPage() {
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder={tAny("transactions.category_placeholder") || "Category"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
+              <SelectItem value="all">{tAny("transactions.all_categories") || "All categories"}</SelectItem>
               {TRANSACTION_CATEGORIES.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
@@ -283,19 +262,18 @@ export default function TransactionsPage() {
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Sort" />
+              <SelectValue placeholder={tAny("transactions.sort_placeholder") || "Sort"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="date-desc">Newest</SelectItem>
-              <SelectItem value="date-asc">Oldest</SelectItem>
-              <SelectItem value="amount-desc">Highest</SelectItem>
-              <SelectItem value="amount-asc">Lowest</SelectItem>
+              <SelectItem value="date-desc">{tAny("transactions.sort.newest") || "Newest"}</SelectItem>
+              <SelectItem value="date-asc">{tAny("transactions.sort.oldest") || "Oldest"}</SelectItem>
+              <SelectItem value="amount-desc">{tAny("transactions.sort.highest") || "Highest"}</SelectItem>
+              <SelectItem value="amount-asc">{tAny("transactions.sort.lowest") || "Lowest"}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </section>
-
-      <section className="hidden rounded-xl border bg-card md:block">
+      <section className="hidden md:block">
         <TransactionTable
           transactions={pagedTransactions}
           onDelete={handleDelete}

@@ -2,6 +2,7 @@
 
 export interface Transaction {
   id: string;
+  userId: string;
   description: string;
   amount: number;
   category: string;
@@ -14,13 +15,14 @@ export interface Transaction {
 
 export type TransactionInput = Omit<
   Transaction,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "userId" | "createdAt" | "updatedAt"
 > & {
   id?: string;
 };
 
 export interface Goal {
   id: string;
+  userId: string;
   title: string;
   category: string;
   color: string;
@@ -33,12 +35,13 @@ export interface Goal {
   updatedAt: string;
 }
 
-export type GoalInput = Omit<Goal, "id" | "createdAt" | "updatedAt"> & {
+export type GoalInput = Omit<Goal, "id" | "userId" | "createdAt" | "updatedAt"> & {
   id?: string;
 };
 
 export interface DiaryNote {
   id: string;
+  userId: string;
   title: string;
   content: string;
   tags: string[];
@@ -51,10 +54,20 @@ export interface DiaryNote {
 
 export type DiaryNoteInput = Omit<
   DiaryNote,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "userId" | "createdAt" | "updatedAt"
 > & {
   id?: string;
-};
+}
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  language: string;
+  currency: string;
+  theme: string;
+  updatedAt: string;
+}
+
 
 export const TRANSACTION_CATEGORIES = [
   "Food",

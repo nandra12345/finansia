@@ -18,6 +18,7 @@ const createTransaction = (input: TransactionInput): Transaction => {
 
   return {
     id: input.id ?? createId(),
+    userId: "", // PERBAIKAN: Menambahkan properti wajib 'userId' agar sesuai dengan tipe data Transaction
     description: input.description.trim(),
     amount: input.amount,
     category: input.category,
@@ -31,9 +32,12 @@ const createTransaction = (input: TransactionInput): Transaction => {
 
 interface FinanceState {
   transactions: Transaction[];
-  addTransaction: (input: TransactionInput) => Transaction;
-  updateTransaction: (id: string, updates: Partial<TransactionInput>) => void;
-  removeTransaction: (id: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  fetchTransactions: () => Promise<void>;
+  addTransaction: (input: TransactionInput) => Promise<Transaction>;
+  updateTransaction: (id: string, updates: Partial<TransactionInput>) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
   replaceTransactions: (transactions: Transaction[]) => void;
   clearTransactions: () => void;
   getTotalBalance: () => number;
@@ -45,39 +49,93 @@ export const useFinanceStore = create<FinanceState>()(
   persist(
     (set, get) => ({
       transactions: [],
-      addTransaction: (input) => {
-        const transaction = createTransaction(input);
-        set((state) => ({ transactions: [transaction, ...state.transactions] }));
-        return transaction;
+      isLoading: false,
+      error: null,
+
+      fetchTransactions: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/transactions");
+          if (!response.ok) throw new Error("Failed to fetch transactions");
+          const data = await response.json();
+          set({ transactions: data, isLoading: false });
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false });
+        }
       },
-      updateTransaction: (id, updates) => {
+
+      addTransaction: async (input) => {
+        const transaction = createTransaction(input);
+        // Optimistic update
+        set((state) => ({ transactions: [transaction, ...state.transactions] }));
+
+        try {
+          const response = await fetch("/api/transactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(transaction),
+          });
+          if (!response.ok) throw new Error("Failed to save transaction");
+          const saved = await response.json();
+          // Update with real data from server if needed
+          set((state) => ({
+            transactions: state.transactions.map((t) => (t.id === transaction.id ? saved : t)),
+          }));
+          return saved;
+        } catch (error) {
+          // Rollback on error
+          set((state) => ({
+            transactions: state.transactions.filter((t) => t.id !== transaction.id),
+            error: (error as Error).message,
+          }));
+          throw error;
+        }
+      },
+
+      updateTransaction: async (id, updates) => {
+        const previousTransactions = get().transactions;
+        const now = nowIso();
+
+        // Optimistic update
         set((state) => ({
-          transactions: state.transactions.map((transaction) => {
-            if (transaction.id !== id) {
-              return transaction;
-            }
-
-            const shouldUpdateNotes = Object.prototype.hasOwnProperty.call(
-              updates,
-              "notes"
-            );
-
-            return {
-              ...transaction,
-              ...updates,
-              description: updates.description?.trim() ?? transaction.description,
-              notes: shouldUpdateNotes
-                ? updates.notes?.trim() || undefined
-                : transaction.notes,
-              updatedAt: nowIso(),
-            };
+          transactions: state.transactions.map((t) => {
+            if (t.id !== id) return t;
+            return { ...t, ...updates, updatedAt: now };
           }),
         }));
+
+        try {
+          const response = await fetch("/api/transactions", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, ...updates }),
+          });
+          if (!response.ok) throw new Error("Failed to update transaction");
+        } catch (error) {
+          // Rollback
+          set({ transactions: previousTransactions, error: (error as Error).message });
+          throw error;
+        }
       },
-      removeTransaction: (id) => {
+
+      removeTransaction: async (id) => {
+        const previousTransactions = get().transactions;
+
+        // Optimistic update
         set((state) => ({
-          transactions: state.transactions.filter((transaction) => transaction.id !== id),
+          transactions: state.transactions.filter((t) => t.id !== id),
         }));
+
+        try {
+          const response = await fetch(`/api/transactions?id=${id}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Failed to delete transaction");
+        } catch (error) {
+          // Rollback
+          set({ transactions: previousTransactions, error: (error as Error).message });
+          throw error;
+        }
       },
       replaceTransactions: (transactions) => {
         set({ transactions });
@@ -125,6 +183,7 @@ export const useFinanceStore = create<FinanceState>()(
             ...legacyState,
             transactions: (legacyState.transactions ?? []).map((transaction) => ({
               id: String(transaction.id ?? createId()),
+              userId: String(transaction.userId ?? ""), // PERBAIKAN: Menambahkan placeholder migrasi untuk data local storage lama
               description: String(transaction.description ?? "Untitled"),
               amount: Number(transaction.amount ?? 0),
               category: String(transaction.category ?? "Other"),
@@ -150,4 +209,3 @@ export const useFinanceStore = create<FinanceState>()(
 );
 
 export type { Transaction };
-

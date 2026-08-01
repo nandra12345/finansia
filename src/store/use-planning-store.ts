@@ -18,6 +18,7 @@ const createGoal = (input: GoalInput): Goal => {
 
   return {
     id: input.id ?? createId(),
+    userId: "", // PERBAIKAN: Menambahkan properti wajib 'userId' agar sesuai dengan tipe data Goal
     title: input.title.trim(),
     category: input.category,
     color: input.color,
@@ -33,60 +34,114 @@ const createGoal = (input: GoalInput): Goal => {
 
 interface PlanningState {
   goals: Goal[];
-  addGoal: (input: GoalInput) => Goal;
-  updateGoal: (id: string, updates: Partial<GoalInput>) => void;
-  addContribution: (id: string, amount: number) => void;
-  removeGoal: (id: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  fetchGoals: () => Promise<void>;
+  addGoal: (input: GoalInput) => Promise<Goal>;
+  updateGoal: (id: string, updates: Partial<GoalInput>) => Promise<void>;
+  addContribution: (id: string, amount: number) => Promise<void>;
+  removeGoal: (id: string) => Promise<void>;
 }
 
 export const usePlanningStore = create<PlanningState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       goals: [],
-      addGoal: (input) => {
+      isLoading: false,
+      error: null,
+
+      fetchGoals: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/planning");
+          if (!response.ok) throw new Error("Failed to fetch goals");
+          const data = await response.json();
+          set({ goals: data, isLoading: false });
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false });
+        }
+      },
+
+      addGoal: async (input) => {
         const goal = createGoal(input);
         set((state) => ({ goals: [goal, ...state.goals] }));
-        return goal;
+
+        try {
+          const response = await fetch("/api/planning", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(goal),
+          });
+          if (!response.ok) throw new Error("Failed to save goal");
+          const saved = await response.json();
+          set((state) => ({
+            goals: state.goals.map((g) => (g.id === goal.id ? saved : g)),
+          }));
+          return saved;
+        } catch (error) {
+          set((state) => ({
+            goals: state.goals.filter((g) => g.id !== goal.id),
+            error: (error as Error).message,
+          }));
+          throw error;
+        }
       },
-      updateGoal: (id, updates) => {
+
+      updateGoal: async (id, updates) => {
+        const previousGoals = get().goals;
+        const now = nowIso();
+
         set((state) => ({
           goals: state.goals.map((goal) => {
-            if (goal.id !== id) {
-              return goal;
-            }
-
+            if (goal.id !== id) return goal;
             return {
               ...goal,
               ...updates,
               title: updates.title?.trim() ?? goal.title,
-              updatedAt: nowIso(),
+              updatedAt: now,
             };
           }),
         }));
-      },
-      addContribution: (id, amount) => {
-        if (!Number.isFinite(amount) || amount <= 0) {
-          return;
+
+        try {
+          const response = await fetch("/api/planning", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, ...updates }),
+          });
+          if (!response.ok) throw new Error("Failed to update goal");
+        } catch (error) {
+          set({ goals: previousGoals, error: (error as Error).message });
+          throw error;
         }
-
-        set((state) => ({
-          goals: state.goals.map((goal) => {
-            if (goal.id !== id) {
-              return goal;
-            }
-
-            return {
-              ...goal,
-              currentAmount: Math.min(goal.targetAmount, goal.currentAmount + amount),
-              updatedAt: nowIso(),
-            };
-          }),
-        }));
       },
-      removeGoal: (id) => {
+
+      addContribution: async (id, amount) => {
+        if (!Number.isFinite(amount) || amount <= 0) return;
+
+        const goal = get().goals.find((g) => g.id === id);
+        if (!goal) return;
+
+        const newAmount = Math.min(goal.targetAmount, goal.currentAmount + amount);
+        await get().updateGoal(id, { currentAmount: newAmount });
+      },
+
+      removeGoal: async (id) => {
+        const previousGoals = get().goals;
+
         set((state) => ({
           goals: state.goals.filter((goal) => goal.id !== id),
         }));
+
+        try {
+          const response = await fetch(`/api/planning?id=${id}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Failed to delete goal");
+        } catch (error) {
+          set({ goals: previousGoals, error: (error as Error).message });
+          throw error;
+        }
       },
     }),
     {
@@ -95,29 +150,28 @@ export const usePlanningStore = create<PlanningState>()(
       migrate: (persistedState, version) => {
         if (version < 2) {
           const legacyState = persistedState as { goals?: Array<Record<string, unknown>> };
+          const currentNow = nowIso();
           return {
             ...legacyState,
             goals: (legacyState.goals ?? []).map((goal) => ({
               id: String(goal.id ?? createId()),
+              userId: String(goal.userId ?? ""), // PERBAIKAN: Menambahkan fallback properti migrasi local storage
               title: String(goal.title ?? "Untitled Goal"),
               category: String(goal.category ?? "Other"),
               color: String(goal.color ?? "#2563eb"),
               targetAmount: Number(goal.targetAmount ?? 0),
               currentAmount: Number(goal.currentAmount ?? 0),
               monthlyContribution: Number(goal.monthlyContribution ?? 0),
-              targetDate: String(goal.targetDate ?? goal.deadline ?? nowIso().slice(0, 10)),
+              targetDate: String(goal.targetDate ?? goal.deadline ?? currentNow.slice(0, 10)),
               expectedAnnualReturn: Number(goal.expectedAnnualReturn ?? 0),
-              createdAt: String(goal.createdAt ?? nowIso()),
-              updatedAt: String(goal.updatedAt ?? nowIso()),
+              createdAt: String(goal.createdAt ?? currentNow),
+              updatedAt: String(goal.updatedAt ?? currentNow),
             })),
           };
         }
 
-        return persistedState;
+        return persistedState as PlanningState;
       },
     }
   )
 );
-
-export type { Goal };
-
