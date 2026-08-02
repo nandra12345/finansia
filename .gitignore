@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -17,16 +15,50 @@
 
 # misc
 .DS_Store
-*.pem
+Thumbs.db
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# environment variables - NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
 
 # vercel
 .vercel
+
+# clerk - contains keyless credentials
+.clerk/
+
+# typescript build info
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# system
+desktop.ini
+
+# credentials and secrets
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+credentials.json
+
+# AI tooling internal files - not for public repos
+CLAUDE.md
+TODO.md
+blackbox_mcp_settings.json
