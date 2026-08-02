@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { memo } from "react";
 import {
   CartesianGrid,
@@ -28,8 +28,8 @@ function OverviewChartComponent({ data }: OverviewChartProps) {
   }
 
   return (
-    <div className="h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: "100%", height: 300 }}>
+      <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis

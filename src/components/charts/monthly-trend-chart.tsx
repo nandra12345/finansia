@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { memo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -20,8 +20,8 @@ function MonthlyTrendChartComponent({ data }: MonthlyTrendChartProps) {
   }
 
   return (
-    <div className="h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: "100%", height: 300 }}>
+      <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis

@@ -1,4 +1,4 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { Transaction, TransactionInput, TransactionType } from "@/types/finance";
@@ -70,14 +70,24 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({ transactions: [transaction, ...state.transactions] }));
 
         try {
+          // Kirim hanya fields yang diizinkan server schema (strict mode)
+          const payload = {
+            id: transaction.id,
+            date: transaction.date,
+            description: transaction.description,
+            amount: transaction.amount,
+            category: transaction.category,
+            type: transaction.type,
+            notes: transaction.notes || "",
+          };
           const response = await fetch("/api/transactions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(transaction),
+            body: JSON.stringify(payload),
           });
           if (!response.ok) throw new Error("Failed to save transaction");
           const saved = await response.json();
-          // Update with real data from server if needed
+          // Update dengan data nyata dari server
           set((state) => ({
             transactions: state.transactions.map((t) => (t.id === transaction.id ? saved : t)),
           }));
