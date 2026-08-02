@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     };
 
     await planningRepo.create(goal);
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json(goal, { status: 201 });
   } catch (err) {
     console.error("POST /api/planning error:", err);
@@ -166,7 +166,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json(updated);
   } catch (err) {
     console.error("PUT /api/planning error:", err);
@@ -194,7 +194,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/planning error:", err);

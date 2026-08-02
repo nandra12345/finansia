@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     };
 
     await notesRepo.create(note);
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json(note, { status: 201 });
   } catch (err) {
     console.error("POST /api/notes error:", err);
@@ -145,7 +145,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json(updated);
   } catch (err) {
     console.error("PUT /api/notes error:", err);
@@ -173,7 +173,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/notes error:", err);

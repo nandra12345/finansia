@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     };
 
     await transactionsRepo.create(transaction);
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
 
     return NextResponse.json(transaction, { status: 201 });
   } catch (err) {
@@ -196,7 +196,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json(updated);
   } catch (err) {
     console.error("PUT /api/transactions error:", err);
@@ -230,7 +230,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    revalidateTag("dashboard-metrics", "max");
+    revalidateTag("dashboard-metrics");
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/transactions error:", err);
