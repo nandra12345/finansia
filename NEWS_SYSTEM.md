@@ -15,7 +15,7 @@ A production-grade financial news system for the Finansia fintech SaaS platform.
 The API key is already configured in `.env.local`:
 
 ```env
-GNEWS_API_KEY=951f0c6f11d4a2830853197571a6f726
+kepo
 ```
 
 ### 2. Access the News Page
