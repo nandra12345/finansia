@@ -245,11 +245,12 @@ function ProfileMenu() {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>{user?.fullName || t("common.account")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex cursor-pointer items-center">
-            <User className="mr-2 h-4 w-4" />
-            {t("common.profile")}
-          </Link>
+        <DropdownMenuItem
+          className="flex cursor-pointer items-center"
+          onClick={() => router.push("/profile")}
+        >
+          <User className="mr-2 h-4 w-4" />
+          {t("common.profile")}
         </DropdownMenuItem>
         <DropdownMenuItem
           className="flex cursor-pointer items-center text-rose-500 focus:text-rose-500 focus:bg-rose-500/10 dark:focus:bg-rose-500/20"
