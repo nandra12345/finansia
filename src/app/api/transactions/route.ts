@@ -146,7 +146,16 @@ export async function POST(request: Request) {
     console.error("POST /api/transactions fatal error:", err);
 
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request payload", details: err.errors },
+        { status: 400 }
+      );
+    }
+
+    // Credentials / konfigurasi hilang (Google Sheets env vars tidak diset)
+    if (err instanceof Error && err.message.includes("credentials")) {
+      console.error("Missing Google Sheets credentials — cek environment variables di Vercel.");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
     }
 
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
