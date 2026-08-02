@@ -123,8 +123,9 @@ export async function POST(request: Request) {
     revalidateTag("dashboard-metrics");
     return NextResponse.json(goal, { status: 201 });
   } catch (err) {
-    console.error("POST /api/planning error:", err);
-    return NextResponse.json({ error: "Failed to create goal" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("POST /api/planning error:", errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

@@ -1,4 +1,4 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { Goal, GoalInput } from "@/types/finance";
@@ -67,10 +67,21 @@ export const usePlanningStore = create<PlanningState>()(
         set((state) => ({ goals: [goal, ...state.goals] }));
 
         try {
+          const payload = {
+            id: goal.id,
+            title: goal.title,
+            category: goal.category,
+            color: goal.color,
+            targetAmount: goal.targetAmount,
+            currentAmount: goal.currentAmount,
+            monthlyContribution: goal.monthlyContribution,
+            targetDate: goal.targetDate,
+            expectedAnnualReturn: goal.expectedAnnualReturn,
+          };
           const response = await fetch("/api/planning", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(goal),
+            body: JSON.stringify(payload),
           });
           if (!response.ok) throw new Error("Failed to save goal");
           const saved = await response.json();

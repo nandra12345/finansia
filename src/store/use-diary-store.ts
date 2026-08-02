@@ -1,4 +1,4 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { DiaryNote, DiaryNoteInput } from "@/types/finance";
@@ -65,10 +65,19 @@ export const useDiaryStore = create<DiaryState>()(
         set((state) => ({ notes: [note, ...state.notes] }));
 
         try {
+          const payload = {
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            tags: note.tags,
+            date: note.date,
+            relatedGoalIds: note.relatedGoalIds,
+            relatedTransactionIds: note.relatedTransactionIds,
+          };
           const response = await fetch("/api/notes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(note),
+            body: JSON.stringify(payload),
           });
           if (!response.ok) throw new Error("Failed to save note");
           const saved = await response.json();
